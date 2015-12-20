@@ -5,15 +5,19 @@
 #include <string>
 #include <vector>
 
-const sf::Vector2i WIN_SIZE = { 800, 600 };
-const int ANTIALIASING_LEVEL = 8;
+const struct
+{
+	sf::Vector2i SIZE = { 800, 600 };
+	int ANTIALIASING_LEVEL = 8;
+	std::string TITLE = "Pendulum";
+} WINDOW;
 
 const struct
 {
 	float VELOCITY = 0.1f;
-	float TOUCH = 25.f;
-	float MAX = 45.f;
-	float BOOST = 0.01f;
+	float TOUCH = -25.f;
+	float START = 60.f;
+	float BOOST = 0.00005f;
 } ANGLE;
 
 const struct
@@ -33,9 +37,8 @@ const struct
 	sf::Vector2f POSITION = { 450, 160 };
 	std::vector<sf::Vector2f> LEFT_HAMMER = { { 0, 0 },{ -100, 50 },{ 0, 30 } };
 	std::vector<sf::Vector2f> RIGHT_HAMMER = { { 0, 0 },{ 100, 50 },{ 0, 30 } };
-	std::vector<sf::Vector2f> BOTTOM = { { 0, 0 },{ -30, 300 },{ 30, 300 } };
+	std::vector<sf::Vector2f> BOTTOM = { { 0, 0 },{ -30, 300 }, {0, 330}, { 30, 300 } };
 } PENDULUM;
-
 //       sprite       //////////////////////////////////////
 struct Sprite_init
 {
@@ -46,7 +49,7 @@ struct Sprite_init
 
 	Sprite_init(){}
 
-	void setSprite(std::string texture_file, sf::Vector2f pos, sf::Vector2f origin, float ang)
+	void set(std::string texture_file, sf::Vector2f pos, sf::Vector2f origin, float ang)
 	{
 		texture.loadFromFile(texture_file);
 		position = pos;
@@ -58,16 +61,13 @@ struct Sprite_init
 		sprite.setRotation(angle);
 	}
 
-	void updateSprite(float rotation)
+	void update(float rotation)
 	{
 		angle += rotation;
 		sprite.setRotation(angle);
 	}
 };
-////////////////////////////////////////////////////////////
-
 //      pendulum       /////////////////////////////////////
-
 sf::ConvexShape setConvex(std::vector<sf::Vector2f> dots, sf::Vector2f position, float angle)
 {
 	sf::ConvexShape convex;
@@ -90,7 +90,7 @@ struct Pendulum
 
 	Pendulum()
 	{
-		angle = ANGLE.MAX;
+		angle = ANGLE.START;
 		left_hammer = setConvex(PENDULUM.LEFT_HAMMER, PENDULUM.POSITION, angle);
 		right_hammer = setConvex(PENDULUM.RIGHT_HAMMER, PENDULUM.POSITION, angle);
 		bottom = setConvex(PENDULUM.BOTTOM, PENDULUM.POSITION, angle);
@@ -111,8 +111,6 @@ struct Pendulum
 		window.draw(bottom);
 	}
 };
-////////////////////////////////////////////////////////////
-
 //     velocity        /////////////////////////////////////
 struct Velocity
 {
@@ -122,32 +120,30 @@ struct Velocity
 	
 	Velocity()
 	{
-		boost = -ANGLE.BOOST;
+		boost = ANGLE.BOOST;
 		gear_velocity = ANGLE.VELOCITY;
 		pendulum_velocity = 0.f;
 	}
 
 	void update(float pendulum_angle)
-	{
-		float new_angle = pendulum_angle + pendulum_velocity * pendulum_velocity / 2 / boost;
-		if (abs(new_angle) >= ANGLE.MAX)
-			boost = -boost;
-
+	{	
 		if (pendulum_velocity > 0)
 		{
 			if (pendulum_angle >= ANGLE.TOUCH)
-				gear_velocity = -ANGLE.VELOCITY;
+				gear_velocity = ANGLE.VELOCITY;
+			if (pendulum_angle >= 0)
+				boost = -ANGLE.BOOST;
 		}
 		if (pendulum_velocity < 0)
 		{
 			if (pendulum_angle <= ANGLE.TOUCH)
-				gear_velocity = ANGLE.VELOCITY;
+				gear_velocity = -ANGLE.VELOCITY;
+			if (pendulum_angle <= 0)
+				boost = ANGLE.BOOST;
 		}
 		pendulum_velocity += boost;
 	}
 };
-////////////////////////////////////////////////////////////
-
 //       shapes        /////////////////////////////////////
 struct Init
 {
@@ -158,18 +154,18 @@ struct Init
 
 	Init()
 	{
-		gear1.setSprite(GEARS.FILE, GEARS.POSITION_1, GEARS.CENTER, GEARS.ANGLE_1);
-		gear2.setSprite(GEARS.FILE, GEARS.POSITION_2, GEARS.CENTER, GEARS.ANGLE_2);
+		gear1.set(GEARS.FILE, GEARS.POSITION_1, GEARS.CENTER, GEARS.ANGLE_1);
+		gear2.set(GEARS.FILE, GEARS.POSITION_2, GEARS.CENTER, GEARS.ANGLE_2);
 		gear1.sprite.setColor(sf::Color::Blue);
 		gear2.sprite.setColor(sf::Color::Red);
 	}
 
-
 	void update()
 	{
-		gear1.updateSprite(ANGLE.VELOCITY);
-		gear2.updateSprite(-ANGLE.VELOCITY);
-		pendulum.update(0.f);
+		velocity.update(pendulum.angle);
+		gear1.update(velocity.gear_velocity);
+		gear2.update(-velocity.gear_velocity);
+		pendulum.update(velocity.pendulum_velocity);
 	}
 
 	void drawShapes(sf::RenderWindow &window)
@@ -186,8 +182,8 @@ int main()
 	Init init;
 
 	sf::ContextSettings settings;
-	settings.antialiasingLevel = ANTIALIASING_LEVEL;
-	sf::RenderWindow window(sf::VideoMode(WIN_SIZE.x, WIN_SIZE.y), "Pendulum", sf::Style::Default, settings);
+	settings.antialiasingLevel = WINDOW.ANTIALIASING_LEVEL;
+	sf::RenderWindow window(sf::VideoMode(WINDOW.SIZE.x, WINDOW.SIZE.y), WINDOW.TITLE, sf::Style::Default, settings);
 
 	while (window.isOpen())
 	{
