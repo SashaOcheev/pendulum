@@ -134,7 +134,7 @@ struct Velocity
 			if (pendulum_angle >= 0)
 				boost = -ANGLE.BOOST;
 		}
-		if (pendulum_velocity < 0)
+		else
 		{
 			if (pendulum_angle <= ANGLE.TOUCH)
 				gear_velocity = -ANGLE.VELOCITY;
